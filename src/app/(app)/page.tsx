@@ -1,5 +1,5 @@
-import { BankChat } from "@/components/chat/bank-chat";
+import { AppHome } from "@/components/chat/app-home";
 
 export default function HomePage() {
-  return <BankChat userName="Rafa" />;
+  return <AppHome />;
 }

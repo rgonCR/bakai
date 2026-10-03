@@ -1,43 +1,22 @@
-import type { AgentQuestion } from "@/lib/chat/types";
+"use client";
+
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 type AssistantBubbleProps = {
   text: string;
-  questions?: AgentQuestion[];
-  onPick?: (question: AgentQuestion, option: string) => void;
 };
 
-export function AssistantBubble({
-  text,
-  questions,
-  onPick,
-}: AssistantBubbleProps) {
-  const choiceQuestions =
-    questions?.filter((q) => q.opcoes.length > 0 && onPick) ?? [];
+/** Só o texto — cards e chips vêm depois, na ordem correta. */
+export function AssistantBubble({ text }: AssistantBubbleProps) {
+  if (!text.trim()) return null;
 
   return (
-    <div className="mb-6 flex justify-start">
-      <div className="max-w-[85%] space-y-3">
-        <div className="whitespace-pre-wrap text-sm leading-relaxed text-ia-foreground">
-          {text}
+    <div className="mb-3 flex justify-start">
+      <div className="max-w-[85%]">
+        <div className="chat-markdown text-sm leading-relaxed text-ia-foreground">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
         </div>
-        {choiceQuestions.length > 0 && (
-          <div className="space-y-3">
-            {choiceQuestions.map((q) => (
-              <div key={q.campo} className="flex flex-wrap gap-2">
-                {q.opcoes.map((opt) => (
-                  <button
-                    key={`${q.campo}-${opt}`}
-                    type="button"
-                    className="rounded-full border border-black/10 px-3 py-1 text-xs"
-                    onClick={() => onPick?.(q, opt)}
-                  >
-                    {opt}
-                  </button>
-                ))}
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );

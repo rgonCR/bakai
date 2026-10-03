@@ -1,27 +1,18 @@
 # bankai
 
-Banco conversacional com inteligência artificial — **bank.ai**.
+Banco conversacional — **bank.ai** — sobre **BaaS Asaas** (subcontas). O usuário não cola API key no fluxo de produto.
 
-## Começar
+| Doc | Conteúdo |
+|-----|----------|
+| [`escopo/tese-mvp.md`](./escopo/tese-mvp.md) | Tese, arquitetura, cronograma |
+| [`escopo/bank-ai-agente-e-tools.md`](./escopo/bank-ai-agente-e-tools.md) | Prompt, tools, evals |
+| [`escopo/STATUS.md`](./escopo/STATUS.md) | Feito / pendente |
 
-```bash
-npm run dev
-```
+## Setup (estado atual)
 
-Abra [http://localhost:3000](http://localhost:3000).
+1. `.env.local` com Supabase anon + `ENCRYPTION_SECRET` + Asaas/Gemini
+2. `npm run dev` → `/login`
+3. Entre com o usuário master (e-mail no STATUS / chat)
+4. Porta dos fundos: cole API key de **subconta sandbox** → “ver saldo” / “ver extrato”
 
-## O que tem agora
-
-- Shell visual (sidebar + painel) herdado do iarticles
-- Chat com orb animado (Three.js / plasma)
-- Blocos determinísticos: chips, formulários e relatórios (mock, sem backend)
-- Sem login nesta fase
-
-## Rotas
-
-| Rota | Descrição |
-|------|-----------|
-| `/` | Conversar (home) |
-| `/extratos` | Placeholder |
-| `/configuracoes` | Placeholder |
-| `/styleguide` | Tokens de design |
+Produto alvo: magic link → abrir subconta por conversa (BaaS) → operar sem colar chave.

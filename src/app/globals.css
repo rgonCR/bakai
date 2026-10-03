@@ -124,3 +124,56 @@ body {
     animation: none;
   }
 }
+
+/* Markdown no chat do assistente */
+.chat-markdown p {
+  margin-bottom: 0.75rem;
+}
+
+.chat-markdown p:last-child {
+  margin-bottom: 0;
+}
+
+.chat-markdown strong {
+  font-weight: 700;
+}
+
+.chat-markdown ul,
+.chat-markdown ol {
+  margin-bottom: 0.75rem;
+  padding-left: 1.25rem;
+}
+
+.chat-markdown ul {
+  list-style: disc;
+}
+
+.chat-markdown ol {
+  list-style: decimal;
+}
+
+.chat-markdown li {
+  margin-bottom: 0.25rem;
+}
+
+.chat-markdown a {
+  color: var(--color-ia-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.chat-markdown code {
+  border-radius: 0.35rem;
+  background: rgb(40 40 40 / 0.06);
+  padding: 0.1rem 0.35rem;
+  font-size: 0.85em;
+}
+
+/* Chips de sugestão — borda em degradê (sem mask: evita artefato no Windows) */
+.ia-chip {
+  border: 1.5px solid transparent;
+  background:
+    linear-gradient(#fff, #fff) padding-box,
+    linear-gradient(135deg, #0022ff 0%, #5ac5ff 100%) border-box;
+  background-clip: padding-box, border-box;
+}

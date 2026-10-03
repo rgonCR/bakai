@@ -12,9 +12,9 @@ export const metadata: Metadata = {
   title: "bank.ai",
   description: "Banco conversacional com inteligência artificial",
   icons: {
-    icon: "/bankai-symbol.svg",
-    shortcut: "/bankai-symbol.svg",
-    apple: "/bankai-symbol.svg",
+    icon: "/logo/logo_bank_FAVICON.svg",
+    shortcut: "/logo/logo_bank_FAVICON.svg",
+    apple: "/logo/logo_bank_FAVICON.svg",
   },
 };
 
@@ -28,8 +28,11 @@ export default function RootLayout({
       lang="pt-BR"
       className={`${nunito.variable} h-full antialiased`}
       style={{ colorScheme: "light" }}
+      suppressHydrationWarning
     >
-      <body className="h-full overflow-hidden">{children}</body>
+      <body className="h-full overflow-hidden" suppressHydrationWarning>
+        {children}
+      </body>
     </html>
   );
 }

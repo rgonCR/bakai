@@ -1,0 +1,5 @@
+// Seed movido para scripts/seed-sandbox.ts
+// Uso: npm run seed:sandbox
+//      → usa ASAAS_MASTER_KEY (conta main / integradora), não cria subconta
+//
+// Cria clientes + cobranças recebidas / pendentes / vencidas na conta main.
