@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { decryptAsaasKey } from "@/lib/crypto/asaas-key";
 import type { AsaasEnv } from "@/lib/asaas/client";
+import { invalidateReadCaches } from "@/lib/asaas/tool-runtime";
 import {
   executeCobranca,
   type CobrancaPayload,
@@ -15,7 +16,8 @@ import {
   executeReenviarCobrancas,
   type ReenviarPayload,
 } from "@/lib/pending/reenviar";
-import { createClient } from "@/lib/supabase/server";
+import { createClientFromRequest } from "@/lib/supabase/request-client";
+import type { createClient } from "@/lib/supabase/server";
 
 type Body = {
   pending_action_id?: string;
@@ -35,7 +37,7 @@ export async function POST(request: Request) {
     }
 
     const action = body.action ?? "confirm";
-    const supabase = await createClient();
+    const supabase = await createClientFromRequest(request);
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -149,16 +151,11 @@ export async function POST(request: Request) {
       if (body.edits?.forma && allowed.has("forma")) {
         edits.forma = body.edits.forma;
       }
-      try {
-        outcome = await executeCobranca({ apiKey, env, payload, edits });
-      } catch (error) {
-        const message =
-          error instanceof Error
-            ? error.message
-            : "Falha ao criar cobrança no Asaas.";
-        await markFailed(supabase, pendingId, pending, message);
+      outcome = await executeCobranca({ apiKey, env, payload, edits });
+      if (!outcome.ok) {
+        await markFailed(supabase, pendingId, pending, outcome.message);
         return NextResponse.json(
-          { ok: false, error: message, status: "failed" },
+          { ok: false, error: outcome.message, status: "failed" },
           { status: 502 },
         );
       }
@@ -210,6 +207,8 @@ export async function POST(request: Request) {
         executed_at: new Date().toISOString(),
       })
       .eq("id", pendingId);
+
+    invalidateReadCaches(account.id as string);
 
     const reply =
       type === "preparar_pix"

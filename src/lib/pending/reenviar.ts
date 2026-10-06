@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
 import type { AsaasEnv } from "@/lib/asaas/client";
+import { asaasErrorMessage } from "@/lib/asaas/asaas-errors";
 import { resendPaymentNotification } from "@/lib/asaas/payments";
 import type { ToolResult, UICard } from "@/lib/agent/types";
 import type { createClient } from "@/lib/supabase/server";
@@ -118,7 +119,7 @@ export async function executeReenviarCobrancas(opts: {
     } catch (error) {
       failIds.push({
         id,
-        error: error instanceof Error ? error.message : "Falha",
+        error: asaasErrorMessage(error, "reenviar"),
       });
     }
   }

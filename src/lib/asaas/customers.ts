@@ -20,12 +20,12 @@ export async function getCustomer(
 export async function searchCustomers(
   apiKey: string,
   env: AsaasEnv,
-  query: { name?: string; cpfCnpj?: string },
+  query: { name?: string; cpfCnpj?: string; limit?: number } = {},
 ): Promise<AsaasCustomer[]> {
   const params = new URLSearchParams();
-  if (query.name) params.set("name", query.name);
+  if (query.name?.trim()) params.set("name", query.name.trim());
   if (query.cpfCnpj) params.set("cpfCnpj", query.cpfCnpj.replace(/\D/g, ""));
-  params.set("limit", "10");
+  params.set("limit", String(query.limit ?? 15));
 
   const list = await asaasFetch<AsaasListResponse<AsaasCustomer>>(
     apiKey,

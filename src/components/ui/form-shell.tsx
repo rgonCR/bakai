@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Loader2, Search, UserRound } from "lucide-react";
 import type { FormBlock, FormField } from "@/lib/chat/types";
 
 export function FormShell({
@@ -148,30 +149,36 @@ export function ChatFormBlock({
     return init;
   });
 
-  const fields = form.fields.map((field) => {
-    if (
-      field.id === "cpf_cnpj" &&
-      boolValues.cliente_modo != null
-    ) {
-      const novo = boolValues.cliente_modo === "novo";
-      return {
-        ...field,
-        required: novo,
-        hint: novo
-          ? "Obrigatório para cadastrar o cliente"
-          : "Opcional — ajuda a achar o cadastro",
-      };
-    }
-    return field;
+  const isClienteStep = form.stepId === "cliente";
+  const clienteNovo = boolValues.cliente_modo === "novo";
+
+  const fields = form.fields.filter((field) => {
+    if (!isClienteStep) return true;
+    if (field.id === "cliente_busca") return !clienteNovo;
+    if (field.id === "cliente" || field.id === "cpf_cnpj") return clienteNovo;
+    return true;
   });
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const values: Record<string, string> = {};
-    for (const field of fields) {
+    for (const field of form.fields) {
       values[field.id] = String(data.get(field.id) ?? "");
+    }
+    // garante modo mesmo se hidden
+    if (boolValues.cliente_modo) {
+      values.cliente_modo = boolValues.cliente_modo;
+    }
+    for (const field of fields) {
       if (field.required && !values[field.id]?.trim()) {
+        return;
+      }
+      if (
+        field.type === "customer_search" &&
+        field.required &&
+        !values[field.id]?.includes("|")
+      ) {
         return;
       }
     }
@@ -179,7 +186,16 @@ export function ChatFormBlock({
   }
 
   return (
-    <FormShell title={form.title} subtitle={form.subtitle}>
+    <FormShell
+      title={form.title}
+      subtitle={
+        isClienteStep
+          ? clienteNovo
+            ? "Informe nome e CPF/CNPJ do novo cliente"
+            : "Busque pelo nome — não precisa saber o CPF"
+          : form.subtitle
+      }
+    >
       <form
         onSubmit={handleSubmit}
         className={`space-y-4 ${disabled ? "opacity-70" : ""}`}
@@ -304,6 +320,201 @@ function BooleanToggleField({
   );
 }
 
+type ClienteHit = {
+  id: string;
+  nome: string;
+  cpf_cnpj: string;
+  email: string;
+  telefone: string;
+};
+
+function formatCpfCnpjDisplay(raw?: string) {
+  if (!raw) return "";
+  const d = raw.replace(/\D/g, "");
+  if (d.length === 11) {
+    return d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+  }
+  if (d.length === 14) {
+    return d.replace(
+      /(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,
+      "$1.$2.$3/$4-$5",
+    );
+  }
+  return raw;
+}
+
+function packCliente(c: ClienteHit) {
+  return [c.nome, c.id, c.cpf_cnpj, c.email, c.telefone].join("|");
+}
+
+function unpackCliente(packed?: string): ClienteHit | null {
+  if (!packed?.includes("|")) return null;
+  const [nome, id, cpf_cnpj, email, telefone] = packed.split("|");
+  if (!id?.trim()) return null;
+  return {
+    id: id.trim(),
+    nome: nome?.trim() || id.trim(),
+    cpf_cnpj: cpf_cnpj?.trim() || "",
+    email: email?.trim() || "",
+    telefone: telefone?.trim() || "",
+  };
+}
+
+function CustomerSearchField({
+  field,
+  disabled,
+}: {
+  field: FormField;
+  disabled?: boolean;
+}) {
+  const initial = unpackCliente(field.value);
+  const [query, setQuery] = useState(initial?.nome ?? "");
+  const [selected, setSelected] = useState<ClienteHit | null>(initial);
+  const [hits, setHits] = useState<ClienteHit[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string>();
+  const [open, setOpen] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onDoc(e: MouseEvent) {
+      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
+
+  useEffect(() => {
+    if (disabled) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      void (async () => {
+        setLoading(true);
+        setError(undefined);
+        try {
+          const res = await fetch(
+            `/api/clientes/search?q=${encodeURIComponent(query.trim())}`,
+          );
+          const json = (await res.json()) as {
+            clientes?: ClienteHit[];
+            error?: string;
+          };
+          if (!res.ok) {
+            setHits([]);
+            setError(json.error || "Não consegui buscar clientes.");
+            return;
+          }
+          setHits(json.clientes ?? []);
+        } catch {
+          setHits([]);
+          setError("Falha ao buscar clientes.");
+        } finally {
+          setLoading(false);
+        }
+      })();
+    }, 280);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [query, disabled]);
+
+  return (
+    <FormFieldBlock
+      id={field.id}
+      label={field.label}
+      hint={field.hint}
+      required={field.required}
+    >
+      <input
+        type="hidden"
+        name={field.id}
+        value={selected ? packCliente(selected) : ""}
+        required={field.required}
+      />
+      <div ref={wrapRef} className="relative">
+        <div className="relative">
+          <Search
+            size={16}
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ia-muted"
+          />
+          <input
+            id={field.id}
+            type="search"
+            autoComplete="off"
+            value={query}
+            placeholder={field.placeholder ?? "Buscar…"}
+            disabled={disabled}
+            className={`${formInputClass} pl-9`}
+            onFocus={() => setOpen(true)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setSelected(null);
+              setOpen(true);
+            }}
+          />
+          {loading ? (
+            <Loader2
+              size={16}
+              className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-ia-muted"
+            />
+          ) : null}
+        </div>
+
+        {selected ? (
+          <p className="mt-2 flex items-center gap-2 text-xs text-ia-foreground">
+            <UserRound size={14} className="text-ia-primary" />
+            <span className="font-medium">{selected.nome}</span>
+            {selected.cpf_cnpj ? (
+              <span className="text-ia-muted">
+                {formatCpfCnpjDisplay(selected.cpf_cnpj)}
+              </span>
+            ) : null}
+          </p>
+        ) : null}
+
+        {open && !disabled ? (
+          <ul className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-ia-border bg-white py-1 shadow-lg">
+            {error ? (
+              <li className="px-3 py-2 text-sm text-red-600">{error}</li>
+            ) : hits.length === 0 && !loading ? (
+              <li className="px-3 py-2 text-sm text-ia-muted">
+                {query.trim()
+                  ? "Nenhum cliente encontrado. Tente outro trecho ou cadastre um novo."
+                  : "Digite para buscar, ou veja os recentes abaixo."}
+              </li>
+            ) : (
+              hits.map((c) => (
+                <li key={c.id}>
+                  <button
+                    type="button"
+                    className="flex w-full flex-col gap-0.5 px-3 py-2.5 text-left hover:bg-ia-surface"
+                    onClick={() => {
+                      setSelected(c);
+                      setQuery(c.nome);
+                      setOpen(false);
+                    }}
+                  >
+                    <span className="text-sm font-medium text-ia-foreground">
+                      {c.nome}
+                    </span>
+                    <span className="text-xs text-ia-muted">
+                      {c.cpf_cnpj
+                        ? formatCpfCnpjDisplay(c.cpf_cnpj)
+                        : "Sem CPF/CNPJ"}
+                      {c.email ? ` · ${c.email}` : ""}
+                    </span>
+                  </button>
+                </li>
+              ))
+            )}
+          </ul>
+        ) : null}
+      </div>
+    </FormFieldBlock>
+  );
+}
+
 function FieldInput({
   field,
   disabled,
@@ -315,6 +526,10 @@ function FieldInput({
   boolValue?: string;
   onBoolChange?: (value: string) => void;
 }) {
+  if (field.type === "customer_search") {
+    return <CustomerSearchField field={field} disabled={disabled} />;
+  }
+
   if (field.type === "boolean") {
     return (
       <BooleanToggleField

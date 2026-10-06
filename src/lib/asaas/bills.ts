@@ -1,4 +1,8 @@
-import { asaasFetch, type AsaasEnv } from "./client";
+import {
+  asaasFetch,
+  type AsaasEnv,
+  type AsaasListResponse,
+} from "./client";
 
 export type BillSimulate = {
   minimumScheduleDate?: string;
@@ -43,6 +47,21 @@ export async function simulateBill(
     method: "POST",
     body: JSON.stringify({ identificationField }),
   });
+}
+
+export async function listBillPayments(
+  apiKey: string,
+  env: AsaasEnv,
+  opts: { limit?: number } = {},
+): Promise<AsaasListResponse<AsaasBill>> {
+  const params = new URLSearchParams();
+  params.set("limit", String(opts.limit ?? 30));
+  params.set("offset", "0");
+  return asaasFetch<AsaasListResponse<AsaasBill>>(
+    apiKey,
+    env,
+    `/bill?${params.toString()}`,
+  );
 }
 
 export async function createBillPayment(

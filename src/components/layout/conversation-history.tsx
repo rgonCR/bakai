@@ -14,6 +14,7 @@ export type RecentConversation = {
   title: string;
   createdAt: string;
   updatedAt: string;
+  hasPendingAction?: boolean;
 };
 
 type ConversationHistoryValue = {

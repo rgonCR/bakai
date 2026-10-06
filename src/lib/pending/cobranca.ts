@@ -15,6 +15,7 @@ import {
   asaasBillingTypeLabel,
   asaasPaymentStatusLabel,
 } from "@/lib/asaas/status";
+import { asaasErrorMessage } from "@/lib/asaas/asaas-errors";
 import type { ToolResult, UICard } from "@/lib/agent/types";
 import type { createClient } from "@/lib/supabase/server";
 
@@ -345,76 +346,80 @@ export async function executeCobranca(opts: {
 }): Promise<
   { ok: true; ui: UICard; result: unknown } | { ok: false; message: string }
 > {
-  const valor = opts.edits?.valor ?? opts.payload.valor;
-  const vencimento = opts.edits?.vencimento ?? opts.payload.vencimento;
-  const forma = opts.edits?.forma ?? opts.payload.forma;
+  try {
+    const valor = opts.edits?.valor ?? opts.payload.valor;
+    const vencimento = opts.edits?.vencimento ?? opts.payload.vencimento;
+    const forma = opts.edits?.forma ?? opts.payload.forma;
 
-  if (!(valor > 0)) {
-    return { ok: false, message: "Valor inválido." };
-  }
-  if (!vencimento || vencimento < todayYmd()) {
-    return { ok: false, message: "Vencimento inválido." };
-  }
-
-  let customerId = opts.payload.cliente_id;
-  if (!customerId && opts.payload.criar_cliente && opts.payload.cpf_cnpj) {
-    const created = await createCustomer(opts.apiKey, opts.env, {
-      name: opts.payload.cliente_nome,
-      cpfCnpj: opts.payload.cpf_cnpj,
-      email: opts.payload.email,
-      mobilePhone: opts.payload.telefone,
-    });
-    customerId = created.id;
-  }
-  if (!customerId) {
-    return { ok: false, message: "Cliente da cobrança não encontrado." };
-  }
-
-  const payment = await createPayment(opts.apiKey, opts.env, {
-    customer: customerId,
-    billingType: forma,
-    value: valor,
-    dueDate: vencimento,
-    description: opts.payload.descricao,
-  });
-
-  let pix: string | undefined;
-  if (forma === "PIX" || forma === "UNDEFINED") {
-    try {
-      const qr = await getPaymentPixQr(opts.apiKey, opts.env, payment.id);
-      pix = qr.payload;
-    } catch {
-      // opcional
+    if (!(valor > 0)) {
+      return { ok: false, message: "Valor inválido." };
     }
-  }
+    if (!vencimento || vencimento < todayYmd()) {
+      return { ok: false, message: "Vencimento inválido." };
+    }
 
-  const linhas = [
-    { label: "Cliente", valor: opts.payload.cliente_nome },
-    { label: "Tipo", valor: "Avulsa" },
-    { label: "Valor", valor: brl(valor) },
-    { label: "Vencimento", valor: formatDateBr(vencimento) },
-    { label: "Forma", valor: asaasBillingTypeLabel(forma) },
-    { label: "Status", valor: asaasPaymentStatusLabel(payment.status) },
-    { label: "ID", valor: payment.id },
-  ];
-  if (payment.invoiceUrl) {
-    linhas.push({ label: "Link", valor: payment.invoiceUrl });
-  }
-  if (pix) {
-    linhas.push({ label: "Pix copia e cola", valor: pix });
-  }
+    let customerId = opts.payload.cliente_id;
+    if (!customerId && opts.payload.criar_cliente && opts.payload.cpf_cnpj) {
+      const created = await createCustomer(opts.apiKey, opts.env, {
+        name: opts.payload.cliente_nome,
+        cpfCnpj: opts.payload.cpf_cnpj,
+        email: opts.payload.email,
+        mobilePhone: opts.payload.telefone,
+      });
+      customerId = created.id;
+    }
+    if (!customerId) {
+      return { ok: false, message: "Cliente da cobrança não encontrado." };
+    }
 
-  return {
-    ok: true,
-    result: { payment, pix },
-    ui: {
-      type: "sucesso",
-      props: {
-        titulo: "Cobrança criada",
-        linhas,
-        link: payment.invoiceUrl,
-        cta_secundario: "Nova cobrança",
+    const payment = await createPayment(opts.apiKey, opts.env, {
+      customer: customerId,
+      billingType: forma,
+      value: valor,
+      dueDate: vencimento,
+      description: opts.payload.descricao,
+    });
+
+    let pix: string | undefined;
+    if (forma === "PIX" || forma === "UNDEFINED") {
+      try {
+        const qr = await getPaymentPixQr(opts.apiKey, opts.env, payment.id);
+        pix = qr.payload;
+      } catch {
+        // opcional
+      }
+    }
+
+    const linhas = [
+      { label: "Cliente", valor: opts.payload.cliente_nome },
+      { label: "Tipo", valor: "Avulsa" },
+      { label: "Valor", valor: brl(valor) },
+      { label: "Vencimento", valor: formatDateBr(vencimento) },
+      { label: "Forma", valor: asaasBillingTypeLabel(forma) },
+      { label: "Status", valor: asaasPaymentStatusLabel(payment.status) },
+      { label: "ID", valor: payment.id },
+    ];
+    if (payment.invoiceUrl) {
+      linhas.push({ label: "Link", valor: payment.invoiceUrl });
+    }
+    if (pix) {
+      linhas.push({ label: "Pix copia e cola", valor: pix });
+    }
+
+    return {
+      ok: true,
+      result: { payment, pix },
+      ui: {
+        type: "sucesso",
+        props: {
+          titulo: "Cobrança criada",
+          linhas,
+          link: payment.invoiceUrl,
+          cta_secundario: "Nova cobrança",
+        },
       },
-    },
-  };
+    };
+  } catch (error) {
+    return { ok: false, message: asaasErrorMessage(error, "cobranca") };
+  }
 }

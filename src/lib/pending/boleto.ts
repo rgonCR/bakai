@@ -6,6 +6,10 @@ import {
   normalizeLinhaDigitavel,
   simulateBill,
 } from "@/lib/asaas/bills";
+import {
+  asaasErrorMessage,
+  toolErrorFromAsaas,
+} from "@/lib/asaas/asaas-errors";
 import type { ToolResult, UICard } from "@/lib/agent/types";
 import type { createClient } from "@/lib/supabase/server";
 
@@ -90,16 +94,7 @@ export async function prepararPagamentoBoleto(opts: {
   try {
     sim = await simulateBill(opts.apiKey, opts.env, linha);
   } catch (error) {
-    return {
-      ok: false,
-      error: {
-        code: "ASAAS_ERROR",
-        message_humana:
-          error instanceof Error
-            ? error.message
-            : "Não consegui simular este boleto no Asaas.",
-      },
-    };
+    return toolErrorFromAsaas(error, "boleto");
   }
 
   const info = sim.bankSlipInfo;
@@ -253,10 +248,7 @@ export async function executePagamentoBoleto(opts: {
   } catch (error) {
     return {
       ok: false,
-      message:
-        error instanceof Error
-          ? error.message
-          : "Falha ao pagar o boleto no Asaas.",
+      message: asaasErrorMessage(error, "boleto"),
     };
   }
 }

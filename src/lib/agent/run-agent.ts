@@ -9,6 +9,11 @@ import {
   listarCobrancas,
   runReadIntent,
 } from "@/lib/asaas/tools";
+import {
+  cachedExtrato,
+  cachedSaldo,
+  withToolTimeout,
+} from "@/lib/asaas/tool-runtime";
 import type { ToolResult } from "@/lib/agent/types";
 import {
   abrirCobranca,
@@ -166,7 +171,9 @@ export async function runAgentTurn(
         inputSchema: z.object({}),
         execute: async () => {
           input.onStatus?.("Consultando saldo…");
-          const toolResult = await getSaldo(input.asaasApiKey, input.asaasEnv);
+          const toolResult = await cachedSaldo(input.accountId, () =>
+            getSaldo(input.asaasApiKey, input.asaasEnv),
+          );
           collected.push(toolResult);
           return toolResult.ok
             ? toolResult.data
@@ -188,10 +195,16 @@ export async function runAgentTurn(
         }),
         execute: async ({ data_inicio, data_fim }) => {
           input.onStatus?.("Consultando extrato…");
-          const toolResult = await getExtrato(input.asaasApiKey, input.asaasEnv, {
-            startDate: data_inicio,
-            finishDate: data_fim,
-          });
+          const periodKey = `${data_inicio ?? ""}:${data_fim ?? ""}`;
+          const toolResult = await cachedExtrato(
+            input.accountId,
+            periodKey,
+            () =>
+              getExtrato(input.asaasApiKey, input.asaasEnv, {
+                startDate: data_inicio,
+                finishDate: data_fim,
+              }),
+          );
           collected.push(toolResult);
           return toolResult.ok
             ? toolResult.data
@@ -204,9 +217,9 @@ export async function runAgentTurn(
         inputSchema: z.object({}),
         execute: async () => {
           input.onStatus?.("Consultando dados da conta…");
-          const toolResult = await getDadosConta(
-            input.asaasApiKey,
-            input.asaasEnv,
+          const toolResult = await withToolTimeout(
+            getDadosConta(input.asaasApiKey, input.asaasEnv),
+            "get_dados_conta",
           );
           collected.push(toolResult);
           return toolResult.ok
@@ -255,10 +268,12 @@ export async function runAgentTurn(
         }),
         execute: async ({ status, limit }) => {
           input.onStatus?.("Listando cobranças…");
-          const toolResult = await listarCobrancas(
-            input.asaasApiKey,
-            input.asaasEnv,
-            { status, limit },
+          const toolResult = await withToolTimeout(
+            listarCobrancas(input.asaasApiKey, input.asaasEnv, {
+              status,
+              limit,
+            }),
+            "listar_cobrancas",
           );
           collected.push(toolResult);
           return toolResult.ok

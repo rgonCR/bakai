@@ -4,6 +4,7 @@ import {
   type AsaasFinancialTransaction,
   type AsaasListResponse,
 } from "./client";
+import { toolErrorFromAsaas } from "./asaas-errors";
 import { listPayments, type AsaasPayment } from "./payments";
 import type { ToolResult } from "@/lib/agent/types";
 
@@ -266,15 +267,6 @@ export async function agenteRelatorio(
       },
     };
   } catch (error) {
-    return {
-      ok: false,
-      error: {
-        code: "ASAAS_ERROR",
-        message_humana:
-          error instanceof Error
-            ? error.message
-            : "Não consegui montar o relatório agora.",
-      },
-    };
+    return toolErrorFromAsaas(error, "relatorio");
   }
 }

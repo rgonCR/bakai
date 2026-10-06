@@ -34,13 +34,22 @@ export function RecentChats({
                   <Link
                     href={`/?c=${c.id}`}
                     title={c.title}
-                    className={`block truncate rounded-lg px-2 py-1.5 text-sm transition-colors ${
+                    className={`flex items-center gap-2 truncate rounded-lg px-2 py-1.5 text-sm transition-colors ${
                       active
                         ? "bg-ia-surface font-medium text-ia-foreground"
                         : "text-ia-foreground/85 hover:bg-ia-surface/80"
                     }`}
                   >
-                    {c.title}
+                    {c.hasPendingAction ? (
+                      <span
+                        className="size-1.5 shrink-0 rounded-full bg-amber-500"
+                        title="Ação aguardando confirmação"
+                        aria-label="Ação pendente"
+                      />
+                    ) : (
+                      <span className="size-1.5 shrink-0" aria-hidden />
+                    )}
+                    <span className="truncate">{c.title}</span>
                   </Link>
                 </li>
               );

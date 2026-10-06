@@ -18,6 +18,7 @@ function AppHomeInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const activeConversationId = searchParams.get("c");
+  const bootPrompt = searchParams.get("q");
   const [booting, setBooting] = useState(true);
   const [bootError, setBootError] = useState<string>();
   const [account, setAccount] = useState<AccountInfo | null>(null);
@@ -112,10 +113,14 @@ function AppHomeInner() {
 
   return (
     <BankChat
+      key={bootPrompt ? `q-${bootPrompt}` : "chat"}
       userName={firstName}
       live
       activeConversationId={activeConversationId}
       onConversationIdChange={handleConversationIdChange}
+      initialPrompt={
+        activeConversationId ? null : bootPrompt?.trim() || null
+      }
     />
   );
 }

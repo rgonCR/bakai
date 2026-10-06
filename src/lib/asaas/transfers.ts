@@ -1,4 +1,8 @@
-import { asaasFetch, type AsaasEnv } from "./client";
+import {
+  asaasFetch,
+  type AsaasEnv,
+  type AsaasListResponse,
+} from "./client";
 
 export type PixKeyType = "CPF" | "CNPJ" | "EMAIL" | "PHONE" | "EVP";
 
@@ -38,6 +42,21 @@ export function inferPixKeyType(chave: string): PixKeyType | null {
   // chave aleatória sem hífens
   if (/^[0-9a-f]{32}$/i.test(raw.replace(/-/g, ""))) return "EVP";
   return null;
+}
+
+export async function listTransfers(
+  apiKey: string,
+  env: AsaasEnv,
+  opts: { limit?: number } = {},
+): Promise<AsaasListResponse<AsaasTransfer>> {
+  const params = new URLSearchParams();
+  params.set("limit", String(opts.limit ?? 30));
+  params.set("offset", "0");
+  return asaasFetch<AsaasListResponse<AsaasTransfer>>(
+    apiKey,
+    env,
+    `/transfers?${params.toString()}`,
+  );
 }
 
 export async function createPixTransfer(

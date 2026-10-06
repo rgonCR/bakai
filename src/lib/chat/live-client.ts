@@ -1,4 +1,6 @@
 import type { UICard } from "@/lib/agent/types";
+import { chatEndpoint } from "./agent-endpoints";
+import { agentAuthHeaders } from "./auth-headers";
 import type { ChatMessage } from "./types";
 
 type SseEvent =
@@ -19,9 +21,10 @@ export async function streamChatMessage(opts: {
   onStatus?: (label: string) => void;
   onConversation?: (id: string) => void;
 }): Promise<ChatMessage> {
-  const res = await fetch("/api/chat", {
+  const headers = await agentAuthHeaders();
+  const res = await fetch(chatEndpoint(), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify({
       message: opts.message,
       conversationId: opts.conversationId,
@@ -60,7 +63,6 @@ export async function streamChatMessage(opts: {
 
         for (const part of event.parts) {
           if (part.type !== "ui" || !part.ui) continue;
-          // chips viram suggestions na bolha — não renderizam de novo como card
           if (part.ui.type === "chips") {
             for (const opt of part.ui.props.options) {
               if (!chipOptions.includes(opt)) chipOptions.push(opt);

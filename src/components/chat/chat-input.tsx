@@ -135,33 +135,26 @@ export function ChatInput({
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1000px]">
-      <div className="rounded-[30px] bg-ia-surface/80 p-2.5">
-        <div className="rounded-[23px] border border-ia-border/50 bg-white p-5 shadow-sm">
-          <label htmlFor={textareaId} className="sr-only">
-            Mensagem para o bank.ai
-          </label>
-          <div className="flex gap-3">
-            <span className="inline-flex h-5 shrink-0 items-center text-ia-primary">
-              <Sparkles size={18} strokeWidth={1.75} />
-            </span>
-            <textarea
-              id={textareaId}
-              ref={textareaRef}
-              value={value}
-              onChange={(event) => onChange(event.target.value)}
-              onKeyDown={handleKeyDown}
-              disabled={disabled}
-              rows={4}
-              placeholder={placeholder}
-              className="min-h-[88px] w-full resize-none bg-transparent text-sm font-medium leading-5 text-ia-foreground outline-none placeholder:text-ia-foreground/75 disabled:opacity-60"
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center justify-end px-3 pb-1 pt-3">
-          <SubmitButton onClick={onSubmit} disabled={submitDisabled} />
-        </div>
+    <div className="mx-auto w-full max-w-[720px]">
+      <label htmlFor={textareaId} className="sr-only">
+        Mensagem para o bank.ai
+      </label>
+      <div className="flex items-center gap-3 rounded-full border border-ia-border bg-white px-4 py-2">
+        <span className="inline-flex shrink-0 items-center text-ia-primary">
+          <Sparkles size={18} strokeWidth={1.75} />
+        </span>
+        <textarea
+          id={textareaId}
+          ref={textareaRef}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          onKeyDown={handleKeyDown}
+          disabled={disabled}
+          rows={1}
+          placeholder={placeholder}
+          className="h-9 w-full flex-1 resize-none bg-transparent py-2 text-sm font-medium leading-5 text-ia-foreground outline-none placeholder:text-ia-foreground/75 disabled:opacity-60"
+        />
+        <SubmitButton onClick={onSubmit} disabled={submitDisabled} />
       </div>
     </div>
   );

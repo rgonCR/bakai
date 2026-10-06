@@ -7,6 +7,7 @@ import {
   type AsaasFinancialTransaction,
   type AsaasListResponse,
 } from "./client";
+import { toolErrorFromAsaas } from "./asaas-errors";
 import { getCustomer } from "./customers";
 import { listPayments } from "./payments";
 import { asaasPaymentStatusLabel } from "./status";
@@ -42,16 +43,7 @@ export async function getSaldo(
       },
     };
   } catch (error) {
-    return {
-      ok: false,
-      error: {
-        code: "ASAAS_ERROR",
-        message_humana:
-          error instanceof Error
-            ? error.message
-            : "Não consegui consultar o saldo agora.",
-      },
-    };
+    return toolErrorFromAsaas(error, "saldo");
   }
 }
 
@@ -87,7 +79,7 @@ export async function getExtrato(
       .reduce((s, r) => s + r.value, 0);
 
     const itens = rows.slice(0, 15).map((r) => ({
-      data: r.date,
+      data: formatDateBr(r.date),
       descricao: r.description || r.type,
       valor: r.value,
     }));
@@ -96,7 +88,7 @@ export async function getExtrato(
       .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
       .slice(0, 10)
       .map((r) => ({
-        data: r.date,
+        data: formatDateBr(r.date),
         descricao: r.description || r.type,
         valor: r.value,
       }));
@@ -107,10 +99,7 @@ export async function getExtrato(
       ui: {
         type: "extrato",
         props: {
-          periodo:
-            args.startDate || args.finishDate
-              ? `${args.startDate ?? "…"} → ${args.finishDate ?? "…"}`
-              : "últimos lançamentos",
+          periodo: formatPeriodoBr(args.startDate, args.finishDate),
           entradas,
           saidas,
           itens,
@@ -118,16 +107,7 @@ export async function getExtrato(
       },
     };
   } catch (error) {
-    return {
-      ok: false,
-      error: {
-        code: "ASAAS_ERROR",
-        message_humana:
-          error instanceof Error
-            ? error.message
-            : "Não consegui carregar o extrato agora.",
-      },
-    };
+    return toolErrorFromAsaas(error, "extrato");
   }
 }
 
@@ -186,16 +166,7 @@ export async function getDadosConta(
       },
     };
   } catch (error) {
-    return {
-      ok: false,
-      error: {
-        code: "ASAAS_ERROR",
-        message_humana:
-          error instanceof Error
-            ? error.message
-            : "Não consegui consultar os dados da conta agora.",
-      },
-    };
+    return toolErrorFromAsaas(error, "conta");
   }
 }
 
@@ -203,6 +174,13 @@ function formatDateBr(ymd: string) {
   const m = ymd?.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (!m) return ymd || "—";
   return `${m[3]}/${m[2]}/${m[1]}`;
+}
+
+function formatPeriodoBr(start?: string, finish?: string) {
+  if (!start && !finish) return "últimos lançamentos";
+  const a = start ? formatDateBr(start) : "…";
+  const b = finish ? formatDateBr(finish) : "…";
+  return `${a} → ${b}`;
 }
 
 export async function listarCobrancas(
@@ -284,16 +262,7 @@ export async function listarCobrancas(
       },
     };
   } catch (error) {
-    return {
-      ok: false,
-      error: {
-        code: "ASAAS_ERROR",
-        message_humana:
-          error instanceof Error
-            ? error.message
-            : "Não consegui listar as cobranças agora.",
-      },
-    };
+    return toolErrorFromAsaas(error, "cobrancas");
   }
 }
 

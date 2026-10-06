@@ -1,0 +1,8 @@
+# Config mínima — deploy: supabase functions deploy chat execute
+# Secrets: AGENT_ORIGIN (URL do Next), ENCRYPTION_SECRET (quando lógica nativa)
+
+[functions.chat]
+verify_jwt = true
+
+[functions.execute]
+verify_jwt = true

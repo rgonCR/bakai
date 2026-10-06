@@ -4,7 +4,7 @@ import type { AsaasEnv } from "@/lib/asaas/client";
 import { runAgentTurn } from "@/lib/agent/run-agent";
 import type { StoredMessage } from "@/lib/chat/hydrate-messages";
 import { toModelMessages } from "@/lib/chat/to-model-messages";
-import { createClient } from "@/lib/supabase/server";
+import { createClientFromRequest } from "@/lib/supabase/request-client";
 
 export const runtime = "nodejs";
 
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
           return;
         }
 
-        const supabase = await createClient();
+        const supabase = await createClientFromRequest(request);
         const {
           data: { user },
         } = await supabase.auth.getUser();

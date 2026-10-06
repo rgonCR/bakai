@@ -144,7 +144,7 @@ export function cobrancaStepForm(
       task: "cobranca",
       stepId: "cliente",
       title: "Cliente",
-      subtitle: "Quem você quer cobrar?",
+      subtitle: "Busque pelo nome ou cadastre um novo — sem precisar decorar CPF",
       submitLabel: "Avançar",
       fields: [
         {
@@ -159,6 +159,17 @@ export function cobrancaStepForm(
           ],
         },
         {
+          id: "cliente_busca",
+          label: "Buscar cliente",
+          type: "customer_search",
+          required: true,
+          hint: "Digite parte do nome ou CPF/CNPJ e escolha na lista",
+          placeholder: "Ex.: João, Maria…",
+          value: draft.cliente_id
+            ? `${draft.cliente ?? ""}|${draft.cliente_id}|${draft.cpf_cnpj ?? ""}|${draft.email ?? ""}|${draft.telefone ?? ""}`
+            : "",
+        },
+        {
           id: "cliente",
           label: "Nome",
           required: true,
@@ -168,10 +179,8 @@ export function cobrancaStepForm(
         {
           id: "cpf_cnpj",
           label: "CPF/CNPJ",
-          required: novo,
-          hint: novo
-            ? "Obrigatório para cadastrar o cliente"
-            : "Opcional — ajuda a achar o cadastro",
+          required: true,
+          hint: "Obrigatório para cadastrar o cliente",
           placeholder: "000.000.000-00",
           value: draft.cpf_cnpj ?? "",
         },
@@ -291,10 +300,16 @@ export function formatWizardAudit(
   }
 
   if (stepId === "cliente") {
-    const nome = values.cliente?.trim() || "—";
-    const cpf = values.cpf_cnpj?.trim();
     const modo =
       values.cliente_modo === "novo" ? "cliente novo" : "cliente cadastrado";
+    if (values.cliente_modo !== "novo" && values.cliente_busca?.includes("|")) {
+      const [nome, , cpf] = values.cliente_busca.split("|");
+      return cpf
+        ? `Avançar com ${modo} ${nome || "—"}, CPF/CNPJ ${cpf}`
+        : `Avançar com ${modo} ${nome || "—"}`;
+    }
+    const nome = values.cliente?.trim() || "—";
+    const cpf = values.cpf_cnpj?.trim();
     return cpf
       ? `Avançar com ${modo} ${nome}, CPF/CNPJ ${cpf}`
       : `Avançar com ${modo} ${nome}`;
@@ -367,12 +382,28 @@ export function patchFromFormValues(
 ): CobrancaDraftPatch {
   if (stepId === "cliente") {
     const novo = values.cliente_modo === "novo";
+    if (novo) {
+      return {
+        cliente_novo: true,
+        cliente: values.cliente?.trim() || undefined,
+        cpf_cnpj: values.cpf_cnpj?.replace(/\D/g, "") || undefined,
+        cliente_id: undefined,
+        activeStepId: "valor_vencimento",
+      };
+    }
+    // customer_search: "nome|id|cpf|email|telefone"
+    const packed = values.cliente_busca?.trim() || "";
+    const [nome, id, cpf, email, telefone] = packed.split("|");
     return {
-      cliente_novo: novo,
-      cliente: values.cliente?.trim() || undefined,
-      cpf_cnpj: values.cpf_cnpj?.replace(/\D/g, "") || undefined,
-      // ao mudar modo, limpa id resolvido anteriormente
-      cliente_id: undefined,
+      cliente_novo: false,
+      cliente: nome?.trim() || values.cliente?.trim() || undefined,
+      cliente_id: id?.trim() || values.cliente_id?.trim() || undefined,
+      cpf_cnpj:
+        cpf?.replace(/\D/g, "") ||
+        values.cpf_cnpj?.replace(/\D/g, "") ||
+        undefined,
+      email: email?.trim() || undefined,
+      telefone: telefone?.replace(/\D/g, "") || undefined,
       activeStepId: "valor_vencimento",
     };
   }

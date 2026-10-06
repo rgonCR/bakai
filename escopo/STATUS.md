@@ -1,113 +1,150 @@
 # Status do MVP — bank.ai
 
-> Atualizado em 2026-10-03. Fonte de tese: [`tese-mvp.md`](./tese-mvp.md) · Tools: [`bank-ai-agente-e-tools.md`](./bank-ai-agente-e-tools.md).
+> Atualizado em **2026-10-03** (pós D6 + moldura + Edge entry).  
+> Tese: [`tese-mvp.md`](./tese-mvp.md) · Tools: [`bank-ai-agente-e-tools.md`](./bank-ai-agente-e-tools.md) · UI: [`bank-ai-interface.md`](./bank-ai-interface.md)
+
+---
 
 ## Tese vigente (resumo)
 
-- **BaaS Asaas:** bank.ai é o integrador; cada usuário recebe uma **subconta** criada via API.
-- Usuário autentica no **bank.ai** (Supabase Auth / magic link), não no Asaas e **não cola API key** no fluxo principal.
-- Duas chaves: **mestre** (só `POST /accounts`) e **subconta** (todas as operações).
-- Escrita = `preparar_*` → card → `/execute` (sem LLM).
-- Porta dos fundos de demo: `source = byo_key` (colar chave de subconta já semeada).
+- **BaaS Asaas:** bank.ai é o integrador; no produto cada usuário recebe uma **subconta** via API.
+- Usuário autentica no **bank.ai** (hoje: e-mail/senha; tese: magic link) — **não cola API key** no fluxo principal.
+- Duas chaves: **mestre** (`ASAAS_MASTER_KEY`, só criar subconta) e **subconta** (operações).
+- Escrita = `preparar_*` → card → `POST /api/execute` (sem LLM).
+- Demo atual: porta dos fundos `byo_key` **ou** conta main sandbox com `ASAAS_MASTER_KEY` + seed.
+
+**Repo GitHub:** `rgonCR/bankai` (renomeado de `bakai`). Pasta local: `Documents/bankai/bankai`.
 
 ---
 
-## Feito
+## O que entrou hoje (2026-10-03) — polish D2–D4
 
-### Produto / front
-- [x] Next.js App Router + shell visual (sidebar, orb/plasma, chat, cards)
-- [x] Marca bank.ai / bankai
-- [x] Styleguide em `/styleguide`
-- [x] Contrato de UI tipado (`UICard`: saldo, extrato, confirmacao, escolha, status_conta, …)
-- [x] Chat SSE (`POST /api/chat`) + render de cards
-- [x] Heurística D1 de intenção para `get_saldo` / `get_extrato` (sem LLM ainda)
-
-### Infra / dados
-- [x] Projeto Supabase `fisdjuejbuszldfqratl`
-- [x] Tabelas: `accounts`, `conversations`, `messages`, `pending_actions`, `tool_logs` + RLS
-- [x] Criptografia AES-GCM server-side (`ENCRYPTION_SECRET`) — hoje no campo legado `asaas_key_enc`
-- [x] Client/server Supabase SSR + middleware de sessão
-- [x] Onboarding **BYO key** (porta dos fundos): `POST /api/onboarding/asaas` + UI “colar chave”
-- [x] Login e-mail/senha em `/login` (usuário master `regdsdesign@gmail.com` criado e confirmado no Auth)
-- [ ] Magic link (tese BaaS) — depois; por ora senha master para destravar testes
-- [ ] Anonymous / signup efêmero removidos do boot (evita rate limit de e-mail)
-
-### Escopo escrito
-- [x] Tese BaaS (`tese-mvp.md`)
-- [x] Catálogo de tools + system prompt + evals (`bank-ai-agente-e-tools.md`)
-- [x] Espelho do system prompt (`system-prompt.md`)
-
-### LLM
-- [x] Gemini via `@ai-sdk/google` no `POST /api/chat` (`GEMINI_API_KEY` no `.env.local`)
-- [x] Tools `get_saldo` / `get_extrato` com tool-calling; fallback heurístico sem key
-- [ ] **Não** subir key no Supabase enquanto o loop estiver no Next (só no D5, Edge Functions)
+| Área | Entrega |
+|------|---------|
+| Cobrança UX | Toggle cliente novo/existente; datas `dd/mm`; CTA de confirmação; pós-fluxo “o que gostaria…”; home com atalho criar cobrança |
+| Cobranças | `listar_cobrancas` + página `/cobrancas` (copiar link, cancelar) |
+| Marca | Logos sidebar/favicon; tipografia/borda no shell |
+| Dev LAN | `allowedDevOrigins` + bind `0.0.0.0` para celular na rede |
+| Home | Cards **Saldo / A receber este mês / Vencidas** (só na home — removidos do rodapé do chat) |
+| Privacidade | Olho mascara saldo **e** cards da home |
+| Seed | `npm run seed:sandbox` na conta **main** (`ASAAS_MASTER_KEY`); datas de caixa em `externalReference` (Asaas não backdata liquidação) |
+| Relatório | Card + gráfico Movimentação (altura em px); série usa datas do seed ou espalha se extrato cair num único dia |
+| Pix | Fluxo preparar→confirmar; **sandbox:** se Asaas Pix out der 400, simula sucesso no bank.ai (saldo Asaas não debita) + chaves BACEN documentadas |
+| Confirm UX | Mensagem do usuário ao clicar = texto do CTA do card (não mais “criação de cobrança…” no Pix) |
 
 ---
 
-## Pendente (ordenado pelo cronograma)
+## Feito por dia (cronograma)
 
-### D1 (reaberto pelo pivot BaaS)
-- [ ] Migrar schema `accounts`:
-  - `asaas_key_enc` → `subaccount_key_enc` (ou alias + rename)
-  - + `asaas_account_id`, `cpf_cnpj`, `onboarding_status`, `source` (`baas` | `byo_key`)
-- [x] Secret `ASAAS_MASTER_KEY` + `ASAAS_MASTER_WALLET_ID` no `.env.local` (sandbox validado via `/myAccount`; base URL `https://sandbox.asaas.com/api/v3`)
-- [ ] Endpoint server: criar subconta (`POST /accounts` com chave mestre) + persistência atômica da apiKey
-- [x] Script de **seed** na subconta sandbox (`npm run seed:sandbox` / `scripts/seed-sandbox.ts`)
-- [ ] Supabase Auth **magic link** (trocar anonymous/efêmero)
-- [ ] Documentar no README: aprovação de subconta no sandbox + regeneração de chave
-- [ ] Validar via MCP Asaas: campos de `POST /accounts`, status/docs, regeneração de key
+### D1 — Fundação BaaS / infra *(parcial)*
 
-### D2
-- [x] `POST /api/execute` (determinístico, idempotência, expires + status)
-- [x] `preparar_cobranca` + card `confirmacao` + fluxo ponta a ponta (sandbox)
-- [x] Mensagem de sistema `acao_executada` na conversa (confirm/cancel/fail)
-- [x] Painel da tarefa + wizard de cobrança (`abrir_cobranca`, form steps, `POST /api/cobranca/prepare`)
-- [x] Tela `/cobrancas` (listar, copiar link, cancelar)
-- [x] Home com chips de tools (criar cobrança, saldo, extrato, …)
-- [ ] Onboarding conversacional: `preparar_abertura_conta` + `get_status_conta` (mesmo padrão preparar→confirmar)
-- [ ] Filtro de tools por `onboarding_status` (só conta/onboarding se ≠ `approved`)
+| Item | Status |
+|------|--------|
+| Next.js App Router + shell (sidebar, orb, chat, cards) | Feito |
+| Supabase Auth + tabelas + RLS (`accounts`, `conversations`, `messages`, `pending_actions`, `tool_logs`) | Feito |
+| AES-GCM (`ENCRYPTION_SECRET`) no campo legado `asaas_key_enc` | Feito |
+| `ASAAS_MASTER_KEY` + `ASAAS_MASTER_WALLET_ID` + base sandbox | Feito |
+| BYO key (`POST /api/onboarding/asaas`) | Feito |
+| Login e-mail/senha (`/login`) | Feito |
+| Seed sandbox (`scripts/seed-sandbox.ts`) | Feito *(conta main; ver nota abaixo)* |
+| Gemini no `POST /api/chat` + tools leitura | Feito |
+| Migrar schema `accounts` (`subaccount_key_enc`, `asaas_account_id`, `onboarding_status`, `source`, …) | **Pendente** |
+| Endpoint criar subconta (`POST /accounts` mestre) + persistência atômica | **Pendente** |
+| Magic link Auth | **Pendente** |
+| README: aprovação sandbox + regeneração de key | **Pendente** |
 
-### D3
-- [x] `listar_cobrancas` + UI + reenvio em lote (`reenviar_cobrancas`)
-- [x] Subagente `resolver_cliente` + card `escolha`
-- [x] `preparar_pix` + execute
-- [x] Home: chips Criar cobrança · Ver vencidas · Fazer Pix · Ver saldo · Ver extrato
+**Nota seed:** Asaas não aceita `dueDate`/`paymentDate` no passado. O seed grava `externalReference: seed-bankai\|YYYY-MM-DD\|n` para o gráfico; liquidação real fica em “hoje”.
 
-### D4
-- [x] `agente_relatorio` + card `relatorio` / gráfico
-- [x] Home proativa (saldo + a receber hoje + vencidas)
-- [x] `leitor_boleto` (normalização) + `preparar_pagamento_boleto` + execute
-- [ ] Home com status de onboarding quando conta ≠ approved (depende D1/D2 BaaS)
+### D2 — Execute + cobrança + home *(quase completo)*
 
-### D5
-- [ ] Migrar loop para Edge `/chat` + `/execute`
-- [ ] Polling de status de onboarding
-- [ ] Identificação regulatória Asaas na UI (“Conta de pagamento fornecida por Asaas”)
+| Item | Status |
+|------|--------|
+| `POST /api/execute` (idempotência, expires, status) | Feito |
+| Cobrança ponta a ponta (`abrir_cobranca` / prepare / confirm) | Feito |
+| `acao_executada` na conversa | Feito |
+| Painel + wizard de cobrança | Feito |
+| `/cobrancas` | Feito |
+| Home com chips / CTAs | Feito |
+| Onboarding conversacional `preparar_abertura_conta` + `get_status_conta` | **Pendente** |
+| Gate de tools por `onboarding_status` | **Pendente** |
 
-### D6
-- [ ] LLM tool-calling no agente principal (`OPENAI_API_KEY` / gateway)
-- [ ] `asaas-errors.ts` (erros humanos)
-- [ ] Evals §8 do catálogo + roteiro de demo cronometrado
-- [ ] Polimento de prompt com conta semeada
+### D3 — Vencidas, cliente, Pix *(completo p/ demo)*
+
+| Item | Status |
+|------|--------|
+| `listar_cobrancas` + reenvio em lote | Feito |
+| `resolver_cliente` + card `escolha` | Feito |
+| `preparar_pix` + execute | Feito *(sandbox com fallback simulado)* |
+| Chips home: cobrança · vencidas · Pix · saldo · extrato | Feito |
+
+**Limitação Asaas:** Pix out no sandbox retorna 400 genérico mesmo com chaves BACEN (`cliente-a00001@pix.bcb.gov.br` etc.). TED e confirmar cobrança funcionam. Fallback: card “Pix simulado (sandbox)”.
+
+### D4 — Relatório, home proativa, boleto *(completo p/ demo)*
+
+| Item | Status |
+|------|--------|
+| `agente_relatorio` + card `relatorio` + gráfico | Feito |
+| Home proativa (saldo + a receber mês + vencidas) | Feito |
+| `leitor_boleto` + `preparar_pagamento_boleto` + execute | Feito |
+| Home com status de onboarding se conta ≠ approved | **Pendente** *(depende D1/D2 BaaS)* |
 
 ---
 
-## Débito técnico / decisões abertas
+## Feito pós-D4 (2026-10-03) — D6 + moldura + Edge entry
+
+| Área | Entrega |
+|------|---------|
+| Erros | `src/lib/asaas/asaas-errors.ts` + plug em tools/pending/execute |
+| Guardrails | timeout 10s + cache saldo/extrato (`tool-runtime.ts`) |
+| Demo | [`evals-demo.md`](./evals-demo.md) — evals 1–8+12 + roteiro cronometrado |
+| Prompt | polish em `prompt.ts` (fora de escopo, confirmação só no botão, Asaas) |
+| UI moldura | painel no shell 3 colunas; ⌘K; OPERAR via `?intent=`; Em breve; recentes com pending |
+| Asaas UI | sidebar + disclaimer + topbar “Via Asaas” + cards |
+| Edge | `supabase/functions/chat` + `execute` (proxy JWT → Next); client via `NEXT_PUBLIC_AGENT_*_URL` |
+
+## Pendente (próximo)
+
+### Fechar BaaS (resto D1 + D2) — de lado nesta onda
+1. Migrar schema `accounts` conforme tese  
+2. `POST` criar subconta com chave mestre + gravar key  
+3. `preparar_abertura_conta` / `get_status_conta` + gate de tools  
+4. Magic link  
+5. Home onboarding quando ≠ approved  
+6. Polling de status de onboarding  
+
+### Depois
+- Portar lógica nativa do loop para Deno (hoje Edge autentica e faz proxy com `AGENT_ORIGIN`)  
+- (Opcional) gateway LLM / keys no Supabase  
+
+### Débitos conhecidos
 
 | Item | Nota |
 |------|------|
-| Nome do campo da chave | Código hoje: `asaas_key_enc`. Tese: `subaccount_key_enc`. Migrar no D1. |
-| Tipo em `pending_actions` | Padronizar `abertura_conta` (execute) vs nome da tool `preparar_abertura_conta`. |
-| BaaS comercial vs sandbox | POC sandbox = subconta comum; produto real exige alinhamento com gerente Asaas. |
-| Aprovação sandbox | Demo não pode depender de KYC lento → seed + conta já aprovada / forçar aprovação. |
-| BYO key | Mantido só para demo/dev (`source=byo_key`, `onboarding_status=approved`). Não é o fluxo de produto. |
-| Edge vs Next | Loop ainda em Route Handler; Edge no D5. |
+| `asaas_key_enc` vs `subaccount_key_enc` | Migrar no D1 |
+| Pix out sandbox | API Asaas instável; simulação local só em `env=sandbox` |
+| Seed na main | Demo usa conta integradora; produto deve seedar **subconta** do usuário |
+| System prompt em código | Fonte viva: `src/lib/agent/prompt.ts` |
+| Edge | Entry points prontos; runtime Node ainda no Next até port nativo |
 
 ---
 
-## Como rodar o que existe hoje
+## Como rodar agora
 
-1. `.env.local` com `NEXT_PUBLIC_SUPABASE_*` + `ENCRYPTION_SECRET`
-2. Auth: Anonymous **ou** Confirm email off (até magic link)
-3. `npm run dev` → porta dos fundos: colar API key de **subconta sandbox**
-4. Chat: “ver saldo” / “ver extrato” / “cobra 350 do João pra sexta”
+1. Abrir pasta `/Users/rafa/Documents/bankai/bankai`  
+2. `.env.local`: Supabase + `ENCRYPTION_SECRET` + `GEMINI_API_KEY` + `ASAAS_MASTER_KEY` (+ wallet) + `ASAAS_API_BASE=https://sandbox.asaas.com/api/v3`  
+3. `npm run dev` → login → (se preciso) colar key BYO ou usar conta já ligada  
+4. Seed: `npm run seed:sandbox`  
+5. Chat: saldo, cobrança, vencidas, relatório do mês, Pix (chave BACEN no sandbox)
+
+---
+
+## Arquivos de escopo (esta pasta)
+
+| Arquivo | Papel |
+|---------|--------|
+| `STATUS.md` | **Este arquivo** — feito / pendente (fonte viva) |
+| `tese-mvp.md` | Tese, arquitetura, cronograma, riscos |
+| `bank-ai-agente-e-tools.md` | Catálogo de tools, prompt canônico, evals |
+| `system-prompt.md` | Espelho rápido do prompt (preferir código se divergir) |
+| `bank-ai-interface.md` | Princípios e wireframes de UI |
+| `evals-demo.md` | Checklist de evals + roteiro de demo |

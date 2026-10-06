@@ -34,6 +34,20 @@ export async function GET() {
     );
   }
 
+  const conversationIds = (data ?? []).map((row) => row.id as string);
+  const pendingIds = new Set<string>();
+  if (conversationIds.length > 0) {
+    const { data: pendings } = await supabase
+      .from("pending_actions")
+      .select("conversation_id")
+      .eq("account_id", account.id)
+      .eq("status", "pending")
+      .in("conversation_id", conversationIds);
+    for (const row of pendings ?? []) {
+      if (row.conversation_id) pendingIds.add(row.conversation_id as string);
+    }
+  }
+
   return NextResponse.json({
     conversations: (data ?? []).map((row) => {
       const raw = (row.title as string | null)?.trim() || "Nova conversa";
@@ -43,6 +57,7 @@ export async function GET() {
         title,
         createdAt: row.created_at as string,
         updatedAt: row.updated_at as string,
+        hasPendingAction: pendingIds.has(row.id as string),
       };
     }),
   });

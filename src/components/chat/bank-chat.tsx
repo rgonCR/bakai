@@ -19,7 +19,8 @@ import {
 import { useAccountSummary } from "@/components/layout/account-summary";
 import { useConversationHistory } from "@/components/layout/conversation-history";
 import { useTaskDraft } from "@/components/layout/task-draft";
-import { TaskPanelHost } from "@/components/task/task-panel";
+import { executeEndpoint } from "@/lib/chat/agent-endpoints";
+import { agentAuthHeaders } from "@/lib/chat/auth-headers";
 import { pickHeroActions } from "@/lib/chat/hero-actions";
 import { AiOrb } from "./ai-orb";
 import { AssistantBubble } from "./assistant-bubble";
@@ -64,15 +65,6 @@ function anchorAssistantTurn(
   container.scrollTo({ top: showBottom, behavior });
 }
 
-function Disclaimer() {
-  return (
-    <p className="text-center text-xs text-ia-muted">
-      O bank.ai é uma IA e pode cometer erros. Toda operação só acontece
-      depois da sua confirmação.
-    </p>
-  );
-}
-
 type BankChatProps = {
   userName?: string;
   /** true = Asaas real via /api/chat; false = mock local */
@@ -80,6 +72,10 @@ type BankChatProps = {
   /** id da conversa na URL (?c=) — null/undefined = novo chat */
   activeConversationId?: string | null;
   onConversationIdChange?: (id: string | undefined) => void;
+  /** Prompt automático ao montar (ex.: intent=extrato) */
+  initialPrompt?: string | null;
+  /** Chips iniciais quando intent não dispara prompt */
+  initialChips?: string[] | null;
 };
 
 export function BankChat({
@@ -87,6 +83,8 @@ export function BankChat({
   live = false,
   activeConversationId = null,
   onConversationIdChange,
+  initialPrompt = null,
+  initialChips = null,
 }: BankChatProps) {
   const router = useRouter();
   const { refresh, upsertConversation } = useConversationHistory();
@@ -683,9 +681,9 @@ export function BankChat({
         }
       }
 
-      const res = await fetch("/api/execute", {
+      const res = await fetch(executeEndpoint(), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await agentAuthHeaders(),
         body: JSON.stringify({
           pending_action_id: actionId,
           action,
@@ -905,8 +903,30 @@ export function BankChat({
 
   useEffect(() => {
     if (activeConversationId || loadingHistory) return;
+    if (initialChips && initialChips.length > 0) {
+      setHeroActions(initialChips);
+      return;
+    }
     setHeroActions(pickHeroActions(5));
-  }, [activeConversationId, loadingHistory]);
+  }, [activeConversationId, loadingHistory, initialChips]);
+
+  const initialPromptFired = useRef(false);
+  useEffect(() => {
+    if (initialPromptFired.current) return;
+    if (!initialPrompt?.trim()) return;
+    if (activeConversationId || loadingHistory || awaitingAgent) return;
+    if (messages.length > 0) return;
+    initialPromptFired.current = true;
+    void handleSend(initialPrompt.trim());
+    // handleSend é estável o suficiente para o boot do intent
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    initialPrompt,
+    activeConversationId,
+    loadingHistory,
+    awaitingAgent,
+    messages.length,
+  ]);
 
   if (loadingHistory) {
     return (
@@ -962,9 +982,6 @@ export function BankChat({
             </div>
           </div>
         </div>
-        <div className="shrink-0 px-4 pb-4">
-          <Disclaimer />
-        </div>
       </div>
     );
   }
@@ -992,6 +1009,11 @@ export function BankChat({
                   <UiCardView
                     key={`${m.id}-card-${idx}`}
                     card={card}
+                    onOpenDetails={
+                      card.type === "confirmacao" || cobrancaDraft
+                        ? () => setPanelOpen(true)
+                        : undefined
+                    }
                     busy={
                       (card.type === "confirmacao" &&
                         executingPendingId ===
@@ -1144,21 +1166,17 @@ export function BankChat({
                   : "Peça ao bank.ai…"
               }
             />
-            <div className="mt-3">
-              <Disclaimer />
-            </div>
           </div>
         </div>
       )}
       </div>
-      <TaskPanelHost />
       {cobrancaDraft && !panelVisible ? (
         <button
           type="button"
           className="fixed bottom-24 right-4 z-30 cursor-pointer rounded-xl border border-ia-border bg-[#F4F7FB] px-3 py-2 text-xs font-semibold text-ia-foreground shadow-sm xl:bottom-8"
           onClick={() => setPanelOpen(true)}
         >
-          Ver resumo da cobrança
+          Ver detalhes
         </button>
       ) : null}
     </div>

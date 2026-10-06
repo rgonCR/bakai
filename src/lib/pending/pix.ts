@@ -11,6 +11,11 @@ import {
   isSandboxPixDestino,
   SANDBOX_PIX_CHAVE_PADRAO,
 } from "@/lib/asaas/sandbox-pix";
+import {
+  asaasErrorMessage,
+  insufficientBalanceMessage,
+  mapAsaasError,
+} from "@/lib/asaas/asaas-errors";
 import type { ToolResult, UICard } from "@/lib/agent/types";
 import type { createClient } from "@/lib/supabase/server";
 
@@ -101,10 +106,7 @@ export async function prepararPix(opts: {
     if (balance.balance < opts.input.valor) {
       return {
         ok: false,
-        error: {
-          code: "INSUFFICIENT_BALANCE",
-          message_humana: `Saldo insuficiente. Você tem ${brl(balance.balance)} e pediu ${brl(opts.input.valor)}.`,
-        },
+        error: insufficientBalanceMessage(balance.balance, opts.input.valor),
       };
     }
   } catch {
@@ -241,13 +243,9 @@ export async function executePix(opts: {
       result: transfer,
     };
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Falha ao enviar o Pix.";
-    if (/saldo|balance|insufficient/i.test(message)) {
-      return {
-        ok: false,
-        message: "Saldo insuficiente para este Pix.",
-      };
+    const mapped = mapAsaasError(error, "pix");
+    if (mapped.code === "INSUFFICIENT_BALANCE") {
+      return { ok: false, message: mapped.message_humana };
     }
 
     // Sandbox Asaas tem recusado Pix out (400 genérico) mesmo com chaves BACEN.
@@ -262,13 +260,17 @@ export async function executePix(opts: {
         if (balance.balance < opts.payload.valor) {
           return {
             ok: false,
-            message: `Saldo insuficiente. Você tem ${brl(balance.balance)} e pediu ${brl(opts.payload.valor)}.`,
+            message: insufficientBalanceMessage(
+              balance.balance,
+              opts.payload.valor,
+            ).message_humana,
           };
         }
       } catch {
         // segue com simulação
       }
 
+      const message = asaasErrorMessage(error, "pix");
       const simId = `sim_pix_${Date.now().toString(36)}`;
       const result = {
         id: simId,
@@ -291,6 +293,6 @@ export async function executePix(opts: {
       };
     }
 
-    return { ok: false, message };
+    return { ok: false, message: mapped.message_humana };
   }
 }

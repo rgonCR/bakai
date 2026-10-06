@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { AsaasEnv } from "@/lib/asaas/client";
+import { toolErrorFromAsaas } from "@/lib/asaas/asaas-errors";
 import {
   looksLikeCpfCnpj,
   searchCustomers,
@@ -83,15 +84,6 @@ export async function resolverCliente(opts: {
       },
     };
   } catch (error) {
-    return {
-      ok: false,
-      error: {
-        code: "ASAAS_ERROR",
-        message_humana:
-          error instanceof Error
-            ? error.message
-            : "Não consegui buscar o cliente agora.",
-      },
-    };
+    return toolErrorFromAsaas(error, "cliente");
   }
 }

@@ -37,7 +37,8 @@ export type FormField = {
     | "date"
     | "tel"
     | "email"
-    | "boolean";
+    | "boolean"
+    | "customer_search";
   value?: string;
   required?: boolean;
   options?: FormFieldOption[];

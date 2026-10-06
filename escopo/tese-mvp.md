@@ -101,14 +101,16 @@ Fora do MVP: assinaturas, NF, split, antecipação, webhooks. Polling/refresh no
 
 ## 7. Cronograma (≈6 dias)
 
-| Dia | Entrega |
-|-----|---------|
-| **D1** | Schema BaaS + `ASAAS_MASTER_KEY` + criar subconta via API (sem UI conversacional) + **seed** sandbox + magic link Auth. BYO key fica como porta dos fundos. |
-| **D2** | `/execute` + idempotência; fluxo cobrança ponta a ponta; onboarding conversacional (fluxo 0) no mesmo padrão. |
-| **D3** | Vencidas + reenviar; `resolver_cliente`; Pix. |
-| **D4** | `agente_relatorio` + gráfico; home proativa (com onboarding); pagar boleto. |
-| **D5** | Edge `/chat` + `/execute`; polling de status; identificação Asaas na UI. |
-| **D6** | Polimento, evals, roteiro de demo com conta semeada. |
+| Dia | Entrega | Situação (2026-10-03) |
+|-----|---------|------------------------|
+| **D1** | Schema BaaS + `ASAAS_MASTER_KEY` + criar subconta via API + **seed** + magic link. BYO key = porta dos fundos. | Parcial — seed + master key ok; schema/subconta/magic link pendentes |
+| **D2** | `/execute` + cobrança ponta a ponta; onboarding conversacional (fluxo 0). | Cobrança ok; onboarding conversacional pendente |
+| **D3** | Vencidas + reenviar; `resolver_cliente`; Pix. | Feito (Pix sandbox com fallback simulado) |
+| **D4** | `agente_relatorio` + gráfico; home proativa; pagar boleto. | Feito (home onboarding status pendente) |
+| **D5** | Edge `/chat` + `/execute`; polling de status; identificação Asaas na UI. | Pendente |
+| **D6** | Polimento, evals, roteiro de demo com conta semeada. | Pendente |
+
+Checklist detalhado: [`STATUS.md`](./STATUS.md).
 
 ## 8. Riscos (tratar cedo)
 

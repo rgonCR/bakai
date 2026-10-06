@@ -18,21 +18,16 @@ import {
   Wallet,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { OPERATE_NAV } from "@/lib/chat/operate-intents";
 import { RecentChats } from "./recent-chats";
 
-type NavItem = {
-  href: string;
-  label: string;
-  icon: LucideIcon;
+const NAV_ICONS: Record<string, LucideIcon> = {
+  cobrancas: Receipt,
+  pagamentos: Wallet,
+  extrato: FileText,
+  clientes: Users,
+  relatorios: BarChart3,
 };
-
-const operateItems: NavItem[] = [
-  { href: "/cobrancas", label: "Cobranças", icon: Receipt },
-  { href: "/pagamentos", label: "Pagamentos", icon: Wallet },
-  { href: "/extrato", label: "Extrato", icon: FileText },
-  { href: "/clientes", label: "Clientes", icon: Users },
-  { href: "/relatorios", label: "Relatórios", icon: BarChart3 },
-];
 
 type SidebarProps = {
   collapsed: boolean;
@@ -53,41 +48,6 @@ function SectionLabel({
     <p className="px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-ia-muted">
       {children}
     </p>
-  );
-}
-
-function NavRow({
-  item,
-  collapsed,
-  isActive,
-}: {
-  item: NavItem;
-  collapsed: boolean;
-  isActive: boolean;
-}) {
-  const Icon = item.icon;
-
-  return (
-    <Link
-      href={item.href}
-      title={collapsed ? item.label : undefined}
-      className={`group/link relative flex w-full items-center py-2 text-sm font-medium text-ia-foreground/90 transition-colors hover:text-ia-foreground ${
-        collapsed ? "justify-center px-0" : "gap-3 pl-3 pr-3"
-      }`}
-    >
-      <span
-        aria-hidden
-        className={`absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-ia-primary transition-opacity ${
-          isActive ? "opacity-100" : "opacity-0 group-hover/link:opacity-100"
-        }`}
-      />
-      <Icon
-        size={20}
-        strokeWidth={1.75}
-        className={`shrink-0 ${isActive ? "text-ia-primary" : ""}`}
-      />
-      {!collapsed && <span className="truncate">{item.label}</span>}
-    </Link>
   );
 }
 
@@ -175,27 +135,61 @@ export function Sidebar({
 
       <nav className="ia-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto pt-1">
         <div className="flex shrink-0 flex-col gap-0.5">
-          <NavRow
-            item={{
-              href: "/",
-              label: "Nova conversa",
-              icon: SquarePen,
-            }}
-            collapsed={collapsed}
-            isActive={onHome}
-          />
+          <Link
+            href="/"
+            title={collapsed ? "Nova conversa" : undefined}
+            className={`group/link relative flex w-full items-center py-2 text-sm font-medium text-ia-foreground/90 transition-colors hover:text-ia-foreground ${
+              collapsed ? "justify-center px-0" : "gap-3 pl-3 pr-3"
+            }`}
+          >
+            <span
+              aria-hidden
+              className={`absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-ia-primary transition-opacity ${
+                onHome ? "opacity-100" : "opacity-0 group-hover/link:opacity-100"
+              }`}
+            />
+            <SquarePen
+              size={20}
+              strokeWidth={1.75}
+              className={`shrink-0 ${onHome ? "text-ia-primary" : ""}`}
+            />
+            {!collapsed && <span className="truncate">Nova conversa</span>}
+          </Link>
         </div>
 
         <SectionLabel collapsed={collapsed}>Operar</SectionLabel>
         <div className="flex shrink-0 flex-col gap-0.5">
-          {operateItems.map((item) => (
-            <NavRow
-              key={item.href}
-              item={item}
-              collapsed={collapsed}
-              isActive={activePath === item.href}
-            />
-          ))}
+          {OPERATE_NAV.map((item) => {
+            const Icon = NAV_ICONS[item.id] ?? FileText;
+            const isActive =
+              activePath === item.href ||
+              activePath.startsWith(`${item.href}/`);
+            return (
+              <Link
+                key={item.id}
+                href={item.href}
+                title={collapsed ? item.label : undefined}
+                className={`group/link relative flex w-full items-center py-2 text-sm font-medium text-ia-foreground/90 transition-colors hover:text-ia-foreground ${
+                  collapsed ? "justify-center px-0" : "gap-3 pl-3 pr-3"
+                }`}
+              >
+                <span
+                  aria-hidden
+                  className={`absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-ia-primary transition-opacity ${
+                    isActive
+                      ? "opacity-100"
+                      : "opacity-0 group-hover/link:opacity-100"
+                  }`}
+                />
+                <Icon
+                  size={20}
+                  strokeWidth={1.75}
+                  className={`shrink-0 ${isActive ? "text-ia-primary" : ""}`}
+                />
+                {!collapsed && <span className="truncate">{item.label}</span>}
+              </Link>
+            );
+          })}
         </div>
 
         <RecentChats
@@ -211,15 +205,16 @@ export function Sidebar({
           }`}
         >
           <div className="min-w-0 flex-1">
-            <NavRow
-              item={{
-                href: "/conta",
-                label: "Minha conta",
-                icon: UserRound,
-              }}
-              collapsed={collapsed}
-              isActive={activePath === "/conta"}
-            />
+            <Link
+              href="/conta"
+              title={collapsed ? "Minha conta" : undefined}
+              className={`group/link relative flex w-full items-center py-2 text-sm font-medium text-ia-foreground/90 transition-colors hover:text-ia-foreground ${
+                collapsed ? "justify-center px-0" : "gap-3 pl-3 pr-3"
+              }`}
+            >
+              <UserRound size={20} strokeWidth={1.75} className="shrink-0" />
+              {!collapsed && <span className="truncate">Minha conta</span>}
+            </Link>
           </div>
           {!collapsed && (
             <button
@@ -244,18 +239,20 @@ export function Sidebar({
             <LogOut size={18} strokeWidth={1.75} />
           </button>
         )}
-        <NavRow
-          item={{
-            href: "/configuracoes",
-            label: "Configurações",
-            icon: Settings,
-          }}
-          collapsed={collapsed}
-          isActive={activePath === "/configuracoes"}
-        />
+        <Link
+          href="/configuracoes"
+          title={collapsed ? "Configurações" : undefined}
+          className={`group/link relative flex w-full items-center py-2 text-sm font-medium text-ia-foreground/90 transition-colors hover:text-ia-foreground ${
+            collapsed ? "justify-center px-0" : "gap-3 pl-3 pr-3"
+          }`}
+        >
+          <Settings size={20} strokeWidth={1.75} className="shrink-0" />
+          {!collapsed && <span className="truncate">Configurações</span>}
+        </Link>
         {!collapsed && (
-          <p className="mt-2 px-3 text-[10px] leading-snug text-ia-muted">
-            Conta de pagamento fornecida por Asaas
+          <p className="mt-2 px-3 text-center text-[10px] leading-snug text-ia-muted">
+            Conta de pagamento fornecida por{" "}
+            <span className="font-bold text-ia-primary">Asaas</span>
           </p>
         )}
       </div>

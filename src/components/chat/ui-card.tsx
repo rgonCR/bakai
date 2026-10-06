@@ -1,8 +1,20 @@
+import { ArrowDown, ArrowUp } from "lucide-react";
 import type { UICard } from "@/lib/agent/types";
 import { CopyIconButton } from "@/components/ui/copy-button";
 
 function brl(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+/** Formata valor de extrato: saídas como −R$ xx,xx */
+function brlSigned(value: number) {
+  const abs = Math.abs(value).toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+  if (value < 0) return `−${abs}`;
+  if (value > 0) return `+${abs}`;
+  return abs;
 }
 
 function CardShell({
@@ -56,6 +68,7 @@ export function UiCardView({
   onCancel,
   onChoice,
   onBatchAction,
+  onOpenDetails,
   busy,
   resolved,
 }: {
@@ -65,6 +78,7 @@ export function UiCardView({
   onCancel?: (pendingActionId: string, meta: ConfirmMeta) => void;
   onChoice?: (id: string, label: string) => void;
   onBatchAction?: (tool: string, ids: string[]) => void;
+  onOpenDetails?: () => void;
   busy?: boolean;
   /** pending já confirmada/cancelada nesta sessão */
   resolved?: boolean;
@@ -107,28 +121,78 @@ export function UiCardView({
   }
 
   if (card.type === "extrato") {
+    const saidasAbs = Math.abs(card.props.saidas);
     return (
       <CardShell title="Extrato">
         <dl className="mb-4 divide-y divide-ia-border">
           <Field label="Período" value={card.props.periodo} />
-          <Field label="Entradas" value={brl(card.props.entradas)} copyable />
-          <Field label="Saídas" value={brl(card.props.saidas)} copyable />
+          <div className="flex items-start justify-between gap-2 py-3 first:pt-0 last:pb-0">
+            <div className="min-w-0 flex-1">
+              <dt className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                Entradas
+              </dt>
+              <dd className="mt-1 text-sm font-semibold text-emerald-700">
+                {brl(card.props.entradas)}
+              </dd>
+            </div>
+          </div>
+          <div className="flex items-start justify-between gap-2 py-3 first:pt-0 last:pb-0">
+            <div className="min-w-0 flex-1">
+              <dt className="text-xs font-semibold uppercase tracking-wide text-red-600">
+                Saídas
+              </dt>
+              <dd className="mt-1 text-sm font-semibold text-red-600">
+                −{brl(saidasAbs)}
+              </dd>
+            </div>
+          </div>
         </dl>
         {card.props.itens.length > 0 ? (
-          <ul className="space-y-2 text-sm text-ia-foreground">
-            {card.props.itens.map((item, i) => (
-              <li
-                key={`${item.data}-${i}`}
-                className="flex justify-between gap-3 border-t border-ia-border/60 pt-2"
-              >
-                <span className="min-w-0">
-                  <span className="text-ia-muted">{item.data}</span>
-                  {" · "}
-                  {item.descricao}
-                </span>
-                <span className="shrink-0 font-medium">{brl(item.valor)}</span>
-              </li>
-            ))}
+          <ul className="divide-y divide-ia-border/60 text-sm text-ia-foreground">
+            {card.props.itens.map((item, i) => {
+              const entrada = item.valor > 0;
+              const saida = item.valor < 0;
+              return (
+                <li
+                  key={`${item.data}-${i}`}
+                  className="flex items-center gap-3 py-2.5 first:pt-0"
+                >
+                  <span className="w-[4.5rem] shrink-0 text-xs tabular-nums text-ia-muted">
+                    {item.data}
+                  </span>
+                  <span
+                    className={`flex size-7 shrink-0 items-center justify-center rounded-full ${
+                      entrada
+                        ? "bg-emerald-50 text-emerald-700"
+                        : saida
+                          ? "bg-red-50 text-red-600"
+                          : "bg-ia-surface text-ia-muted"
+                    }`}
+                    aria-label={entrada ? "Entrada" : saida ? "Saída" : "Lançamento"}
+                  >
+                    {entrada ? (
+                      <ArrowUp size={14} strokeWidth={2.25} />
+                    ) : saida ? (
+                      <ArrowDown size={14} strokeWidth={2.25} />
+                    ) : (
+                      <span className="text-[10px]">·</span>
+                    )}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">{item.descricao}</span>
+                  <span
+                    className={`shrink-0 font-semibold tabular-nums ${
+                      entrada
+                        ? "text-emerald-700"
+                        : saida
+                          ? "text-red-600"
+                          : "text-ia-foreground"
+                    }`}
+                  >
+                    {brlSigned(item.valor)}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         ) : (
           <p className="text-sm text-ia-muted">Nenhum lançamento no período.</p>
@@ -176,6 +240,15 @@ export function UiCardView({
             >
               Cancelar
             </button>
+            {onOpenDetails ? (
+              <button
+                type="button"
+                className="cursor-pointer px-2 py-2.5 text-sm font-medium text-ia-primary underline-offset-2 hover:underline"
+                onClick={onOpenDetails}
+              >
+                Ver detalhes
+              </button>
+            ) : null}
           </div>
         )}
       </CardShell>
